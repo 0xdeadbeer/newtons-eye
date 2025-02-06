@@ -1,0 +1,1 @@
+../thirdparty/bgfx.cmake/bgfx/src/bgfx_shader.sh

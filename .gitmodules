@@ -1,0 +1,18 @@
+[submodule "thirdparty/bgfx.cmake"]
+	path = thirdparty/bgfx.cmake
+	url = https://github.com/bkaradzic/bgfx.cmake
+[submodule "thirdparty/glfw.cmake"]
+	path = thirdparty/glfw.cmake
+	url = https://github.com/glfw/glfw
+[submodule "thirdparty/assimp.cmake"]
+	path = thirdparty/assimp.cmake
+	url = https://github.com/assimp/assimp
+[submodule "thirdparty/glm.cmake"]
+	path = thirdparty/glm.cmake
+	url = https://github.com/icaven/glm
+[submodule "thirdparty/imgui"]
+	path = thirdparty/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "thirdparty/imgui.cmake"]
+	path = thirdparty/imgui.cmake
+	url = https://github.com/tamaskenez/imgui-cmake

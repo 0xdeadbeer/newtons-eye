@@ -1,0 +1,1 @@
+../thirdparty/bgfx.cmake/bgfx/examples/common/shaderlib.sh
