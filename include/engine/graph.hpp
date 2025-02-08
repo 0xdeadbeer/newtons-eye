@@ -1,6 +1,7 @@
 #ifndef GRAPH_HPP
 #define GRAPH_HPP
 
+#include <iostream>
 #include <glm/glm.hpp>
 #include <bgfx/bgfx.h>
 
@@ -11,12 +12,21 @@ struct polynomial_term {
 
 struct polynomial {
     std::vector<struct polynomial_term> terms;
+
+    float x_offset; 
+    float y_offset; 
+    float sampling_rate;
+
     void add_term(float coefficient, int x_degree) {
         struct polynomial_term new_term = {
             .coefficient = coefficient,
             .x_degree = x_degree,
         };
         this->terms.push_back(new_term);
+    }
+
+    polynomial() : terms(), x_offset(0.0f), y_offset(0.0f), sampling_rate(0.001f) {
+
     }
 };
 
@@ -25,6 +35,7 @@ class GraphComponent {
         GraphComponent();
 
         void LoadPolynomial(struct polynomial p, glm::vec3 space_view = glm::vec3(1.0f));
+        void Calculate(float x, std::vector<float> &out);
 
         struct polynomial p;
         glm::vec3 space_view;

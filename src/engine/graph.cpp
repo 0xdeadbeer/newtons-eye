@@ -16,3 +16,17 @@ void GraphComponent::LoadPolynomial(struct polynomial p, glm::vec3 space_view) {
     this->p = p;
     this->space_view = space_view;
 }
+
+void GraphComponent::Calculate(float x, std::vector<float> &out) {
+    struct polynomial *p = &this->p;
+    float y = p->y_offset;
+    for (int term = 0; term < p->terms.size(); ++term) {
+        struct polynomial_term *t = &p->terms.at(term);
+
+        y += t->coefficient * std::pow(x+p->x_offset, t->x_degree); 
+    }
+
+    out.push_back(x);
+    out.push_back(y);
+    out.push_back(0.0f);
+}

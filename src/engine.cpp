@@ -169,14 +169,6 @@ int Engine::Init(void) {
     return 0;
 }
 
-float start = 0.0f;
-float end = 40.0f;
-float sampling_rate = 0.01f;
-float freq = 1.0f; 
-float amp = 1.0f; 
-float x_offset = 0.0f;
-float y_offset = 0.0f;
-
 int Engine::UserLoad(void) {
     EngineObject obj; 
     struct polynomial p;
@@ -200,9 +192,9 @@ void Engine::UserUpdate(void) {
 
     ImGui::Begin("Curve Configuration"); 
     ImGui::SliderFloat("depth", &(graph->p.terms[0].coefficient), -10.0f, 10.0f);
-    ImGui::SliderFloat("sampling", &sampling_rate, 0.001f, 1.0f);
-    ImGui::SliderFloat("x offset", &x_offset, -10.0f, 10.0f);
-    ImGui::SliderFloat("y offset", &y_offset, -10.0f, 10.0f);
+    ImGui::SliderFloat("sampling", &graph->p.sampling_rate, 0.001f, 1.0f);
+    ImGui::SliderFloat("x offset", &graph->p.x_offset, -10.0f, 10.0f);
+    ImGui::SliderFloat("y offset", &graph->p.y_offset, -10.0f, 10.0f);
 
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
 
@@ -240,18 +232,8 @@ void Engine::UserUpdate(void) {
 
     ImGui::End();
 
-    for (float x = -graph->space_view.x; x < graph->space_view.x; x += sampling_rate) {
-        float y = y_offset; 
-        for (int term = 0; term < graph->p.terms.size(); ++term) {
-            struct polynomial_term p_term = graph->p.terms.at(term);
-            float coefficient = p_term.coefficient; 
-            int degree = p_term.x_degree;
-            y += coefficient * std::pow(x+x_offset, degree);
-        }
-
-        vertices.push_back(x);
-        vertices.push_back(y+y_offset);
-        vertices.push_back(0.0f);
+    for (float x = -graph->space_view.x; x < graph->space_view.x; x += graph->p.sampling_rate) {
+        graph->Calculate(x, vertices);
     }
 
     bgfx::TransientVertexBuffer tb;
