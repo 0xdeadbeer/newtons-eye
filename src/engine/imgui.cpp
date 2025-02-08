@@ -45,7 +45,6 @@ bgfx::VertexLayout imgui_vertex_layout;
 bgfx::TextureHandle imgui_font_texture;
 bgfx::UniformHandle imgui_font_uniform;
 bgfx::ProgramHandle imgui_program;
-void imgui_render(ImDrawData *data);
 GLFWwindow *imgui_window = NULL;
 GLFWcursor *mouse_cursors[ImGuiMouseCursor_COUNT] = { 0 };
 

@@ -4,5 +4,5 @@ $input f_position
 #include <shaderlib.sh>
 
 void main() {
-  gl_FragColor = vec4(f_position.xyz, 1.0f);
+  gl_FragColor = vec4(1.0f);
 }

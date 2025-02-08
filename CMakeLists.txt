@@ -16,7 +16,8 @@ add_executable(pgv
     src/engine.cpp
     src/engine/quad.cpp
     src/engine/object.cpp
-    src/engine/animation.cpp
+    src/engine/model.cpp
+    src/engine/graph.cpp
     src/engine/imgui.cpp
 )
 target_link_libraries(pgv bx)

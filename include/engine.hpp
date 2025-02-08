@@ -7,6 +7,7 @@
 #include <bgfx/bgfx.h>
 #include <GLFW/glfw3.h>
 #include <engine/object.hpp>
+#include <memory>
 
 #define CAMERA_WIDTH 50.0f
 #define CAMERA_NEAR 0.01f
@@ -16,12 +17,11 @@ class Engine {
     public:
         Engine(void);
         int Init(void);
-        int Update(void);
+        void Update(void);
         void Shutdown(void); 
-        static void GlfwErrorCallback(int error, const char *s);
+        int UserLoad(void);
+        void UserUpdate(void);
     
-        void Instantiate(EngineObject* obj);
-
         GLFWwindow* main_window;
         int main_view;
 
@@ -29,7 +29,16 @@ class Engine {
         int cursor_slots[GLFW_MOUSE_BUTTON_LAST+1];
         int cursor_xpos;
         int cursor_ypos;
-        
+
+        void CalculateGraph(float start, 
+                float end, 
+                float sampling_rate, 
+                float freq, 
+                float amp, 
+                float x_offset, 
+                float y_offset);
+            
+        static void error_callback(int error, const char *s);
         static void keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
         static void cursor_callback(GLFWwindow *window, double x, double y);
         static void cursor_button_callback(GLFWwindow *window, int button, int action, int mods);
@@ -49,7 +58,7 @@ class Engine {
         bgfx::UniformHandle u_rotation; 
         bgfx::UniformHandle u_scale; 
 
-        std::vector<EngineObject *> objs; 
+        std::vector<EngineObject> objs; 
 
         float last_time; 
         float dt; 

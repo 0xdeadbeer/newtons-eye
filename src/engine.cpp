@@ -1,11 +1,8 @@
-#include <iostream>
-#include "bgfx/defines.h"
-#include "engine/object.hpp"
-#include "imgui.h"
+#include "imgui_internal.h"
+#include <bgfx/defines.h>
 #include <bx/file.h>
 #include <bx/math.h>
 #include <glm/fwd.hpp>
-#include <vector>
 #include <cstring>
 #include <engine.hpp>
 #include <bgfx/bgfx.h>
@@ -15,7 +12,10 @@
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3native.h>
 #include <engine/quad.hpp>
+#include <imgui.h>
 #include <engine/imgui.hpp>
+#include <engine/graph.hpp>
+#include <engine/model.hpp>
 
 Engine::Engine(void) {
     this->width = DEFAULT_WIDTH;
@@ -93,7 +93,7 @@ int Engine::Init(void) {
         return -1;
     }
 
-    glfwSetErrorCallback(Engine::GlfwErrorCallback);
+    glfwSetErrorCallback(this->error_callback);
 
     this->main_window = glfwCreateWindow(this->width, this->height, this->title.c_str(), 
 #ifdef GLFW_DEBUG
@@ -108,9 +108,9 @@ int Engine::Init(void) {
     }
 
     glfwSetWindowUserPointer(this->main_window, this);
-    glfwSetKeyCallback(this->main_window, Engine::keyboard_callback);
-    glfwSetCursorPosCallback(this->main_window, Engine::cursor_callback);
-    glfwSetMouseButtonCallback(this->main_window, Engine::cursor_button_callback);
+    glfwSetKeyCallback(this->main_window, this->keyboard_callback);
+    glfwSetCursorPosCallback(this->main_window, this->cursor_callback);
+    glfwSetMouseButtonCallback(this->main_window, this->cursor_button_callback);
     glfwSetWindowSizeCallback(this->main_window, this->window_size_callback);
     glfwSetScrollCallback(this->main_window, this->scroll_callback);
     glfwSetCharCallback(this->main_window, this->char_callback);;
@@ -161,12 +161,116 @@ int Engine::Init(void) {
     imgui_init(this->main_window);
     reset();
 
+    ret = this->UserLoad();
+    if (ret < 0) {
+        return -1;
+    }
+
     return 0;
 }
 
-float angular_velocity[3];
+float start = 0.0f;
+float end = 40.0f;
+float sampling_rate = 0.01f;
+float freq = 1.0f; 
+float amp = 1.0f; 
+float x_offset = 0.0f;
+float y_offset = 0.0f;
 
-int Engine::Update(void) {
+int Engine::UserLoad(void) {
+    EngineObject obj; 
+    struct polynomial p;
+    p.add_term(-4.0f, 3);
+    p.add_term(1.0f, 2);
+    p.add_term(4.0f, 1);
+    p.add_term(-24.0f/4.0f, 0);
+
+    obj.graph = new GraphComponent();
+    obj.graph->LoadPolynomial(p, glm::vec3(10.0f));
+    this->objs.push_back(obj);
+
+    return 0;
+}
+
+void Engine::UserUpdate(void) {
+    std::vector<float> vertices; 
+
+    EngineObject *obj = &(this->objs.at(0));
+    GraphComponent *graph = obj->graph;
+
+    ImGui::Begin("Curve Configuration"); 
+    ImGui::SliderFloat("depth", &(graph->p.terms[0].coefficient), -10.0f, 10.0f);
+    ImGui::SliderFloat("sampling", &sampling_rate, 0.001f, 1.0f);
+    ImGui::SliderFloat("x offset", &x_offset, -10.0f, 10.0f);
+    ImGui::SliderFloat("y offset", &y_offset, -10.0f, 10.0f);
+
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
+
+    { 
+        ImGui::Text("Position:");
+
+        ImGui::BeginTable("position", 3);
+        ImGui::TableNextColumn();
+        ImGui::SliderFloat("x", &obj->position.x, -30.0f, 30.0f);
+
+        ImGui::TableNextColumn();
+        ImGui::SliderFloat("y", &obj->position.y, -30.0f, 30.0f);
+
+        ImGui::TableNextColumn();
+        ImGui::SliderFloat("z", &obj->position.z, -30.0f, 30.0f);
+
+        ImGui::EndTable();
+    }
+
+    { 
+        ImGui::Text("Rotation:");
+
+        ImGui::BeginTable("rotation", 3);
+        ImGui::TableNextColumn();
+        ImGui::SliderFloat("x", &obj->rotation.x, 0.0f, 360.0f);
+
+        ImGui::TableNextColumn();
+        ImGui::SliderFloat("y", &obj->rotation.y, 0.0f, 360.0f);
+
+        ImGui::TableNextColumn();
+        ImGui::SliderFloat("z", &obj->rotation.z, 0.0f, 360.0f);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+
+    for (float x = -graph->space_view.x; x < graph->space_view.x; x += sampling_rate) {
+        float y = y_offset; 
+        for (int term = 0; term < graph->p.terms.size(); ++term) {
+            struct polynomial_term p_term = graph->p.terms.at(term);
+            float coefficient = p_term.coefficient; 
+            int degree = p_term.x_degree;
+            y += coefficient * std::pow(x+x_offset, degree);
+        }
+
+        vertices.push_back(x);
+        vertices.push_back(y+y_offset);
+        vertices.push_back(0.0f);
+    }
+
+    bgfx::TransientVertexBuffer tb;
+    bgfx::allocTransientVertexBuffer(&tb, vertices.size()/3, graph->graph_layout);
+    
+    uint8_t *data = tb.data;
+    memcpy(data, vertices.data(), vertices.size()*sizeof(float));
+
+    bgfx::setState(graph->render_state);
+
+    bgfx::setVertexBuffer(0, &tb);
+    bgfx::setUniform(this->u_position, &obj->position);
+    bgfx::setUniform(this->u_rotation, &obj->rotation);
+    bgfx::setUniform(this->u_scale, &obj->scale);
+
+    bgfx::submit(this->main_view, this->program);
+}
+
+void Engine::Update(void) {
     this->time = glfwGetTime();
     this->dt = this->time - this->last_time;
     this->last_time = this->time;
@@ -174,46 +278,15 @@ int Engine::Update(void) {
     glfwPollEvents();
 
     imgui_events(this->dt);
-
     ImGui::NewFrame();
-
-    ///////////////
-    // UPDATE 
-    ///////////////
-
-    this->objs.at(0)->rotation.x += angular_velocity[0] * dt;  
-    this->objs.at(0)->rotation.y += angular_velocity[1] * dt;  
-    this->objs.at(0)->rotation.z += angular_velocity[2] * dt;  
-
     bgfx::touch(this->main_view);
-    ImGui::ShowDemoWindow();
 
-    ImGui::Begin("Hello there");
-    ImGui::Text("Hello theree!");
-    ImGui::SliderFloat("angular velocity (x component)", &angular_velocity[0], -2.5f, 2.5f);
-    ImGui::SliderFloat("angular velocity (y component)", &angular_velocity[1], -2.5f, 2.5f);
-    ImGui::SliderFloat("angular velocity (z component)", &angular_velocity[2], -2.5f, 2.5f);
-    ImGui::End();
-    
-    ///////////////
-    // UPDATE 
-    ///////////////
+    this->UserUpdate();
 
     ImGui::Render();
     imgui_render(ImGui::GetDrawData());
 
-    std::int32_t new_width;
-    std::int32_t new_height;
-    glfwGetFramebufferSize(this->main_window, &new_width, &new_height);
-    if (new_width != this->width || new_height != this->height) {
-        bgfx::reset(new_width, new_height, 0);
-        bgfx::setViewRect(this->main_view, 0, 0, bgfx::BackbufferRatio::Equal);
-        this->width = new_width;
-        this->height = new_height;
-    }
-
-
-    for (int i = 0; i < this->objs.size(); i++) {
+    /* for (int i = 0; i < this->objs.size(); i++) {
         bgfx::setState(BGFX_STATE_WRITE_R |
                 BGFX_STATE_WRITE_G | 
                 BGFX_STATE_WRITE_B | 
@@ -232,21 +305,13 @@ int Engine::Update(void) {
         bgfx::setUniform(this->u_scale, &obj->scale);
 
         bgfx::submit(this->main_view, this->program);
-    }
+    } */ 
 
     bgfx::frame();
-
-    return 0;
 }
 
 void Engine::Shutdown(void) { 
     imgui_shutdown();
-
-    for (int i = 0; i < this->objs.size(); i++) {
-        EngineObject* obj = this->objs[i];
-        bgfx::destroy(obj->vbh);
-        bgfx::destroy(obj->ibh);
-    }
 
     bgfx::destroy(this->u_position);
     bgfx::destroy(this->u_rotation);
@@ -258,10 +323,6 @@ void Engine::Shutdown(void) {
     glfwTerminate();
 }
 
-void Engine::GlfwErrorCallback(int error, const char *s) {
+void Engine::error_callback(int error, const char *s) {
     ERROR("glfw failed -> " << s);
-}
-
-void Engine::Instantiate(EngineObject* obj) {
-    this->objs.push_back(obj);
 }
