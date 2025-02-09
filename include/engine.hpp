@@ -13,6 +13,13 @@
 #define CAMERA_NEAR 0.01f
 #define CAMERA_FAR 100.0f
 
+#define INPUT_A         0b00000001
+#define INPUT_D         0b00000010
+#define INPUT_W         0b00000100
+#define INPUT_S         0b00001000
+#define INPUT_ZOOM_OUT  0b00010000
+#define INPUT_ZOOM_IN   0b00100000
+
 class Engine {
     public:
         Engine(void);
@@ -47,6 +54,8 @@ class Engine {
         static void char_callback(GLFWwindow *window, unsigned int codepoint);
 
         void reset(void);
+
+        unsigned char input_map;
 
     private: 
         int width; 

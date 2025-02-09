@@ -30,11 +30,22 @@ Engine::Engine(void) {
     this->last_time = 0; 
     this->dt = 0; 
     this->time = 0; 
+    this->input_map = 0; 
 }
 
 void Engine::keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     Engine *engine = (Engine *) glfwGetWindowUserPointer(window);
     engine->keyboard_slots[key] = action; 
+
+    unsigned char new_input_map; 
+    new_input_map |= (key == GLFW_KEY_A) && ((action & GLFW_REPEAT) || (action & GLFW_PRESS)) ? INPUT_A : 0;
+    new_input_map |= (key == GLFW_KEY_D) && ((action & GLFW_REPEAT) || (action & GLFW_PRESS)) ? INPUT_D : 0; 
+    new_input_map |= (key == GLFW_KEY_W) && ((action & GLFW_REPEAT) || (action & GLFW_PRESS)) ? INPUT_W : 0; 
+    new_input_map |= (key == GLFW_KEY_S) && ((action & GLFW_REPEAT) || (action & GLFW_PRESS)) ? INPUT_S : 0; 
+    new_input_map |= (key == GLFW_KEY_UP) && ((action & GLFW_REPEAT) || (action & GLFW_PRESS)) ? INPUT_ZOOM_IN : 0; 
+    new_input_map |= (key == GLFW_KEY_DOWN) && ((action & GLFW_REPEAT) || (action & GLFW_PRESS)) ? INPUT_ZOOM_OUT : 0; 
+
+    engine->input_map = new_input_map;
 }
 
 void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
@@ -146,7 +157,7 @@ int Engine::Init(void) {
         bx::mtxLookAt(view, eye, at);
 
         float proj[16];
-        bx::mtxProj(proj, 60.0f, float(this->width)/float(this->height), 0.1f, 100.0f, bgfx::getCaps()->homogeneousDepth);
+        bx::mtxProj(proj, 60.0f, float(this->width)/float(this->height), 0.1f, 500.0f, bgfx::getCaps()->homogeneousDepth);
 
         bgfx::setViewTransform(this->main_view, view, proj);
     }
@@ -172,10 +183,8 @@ int Engine::Init(void) {
 int Engine::UserLoad(void) {
     EngineObject obj; 
     struct polynomial p;
-    p.add_term(-4.0f, 3);
-    p.add_term(1.0f, 2);
-    p.add_term(4.0f, 1);
-    p.add_term(-24.0f/4.0f, 0);
+    p.add_term(1, 1, 1);
+    p.add_term(1, 2, 0);
 
     obj.graph = new GraphComponent();
     obj.graph->LoadPolynomial(p, glm::vec3(10.0f));
@@ -190,13 +199,21 @@ void Engine::UserUpdate(void) {
     EngineObject *obj = &(this->objs.at(0));
     GraphComponent *graph = obj->graph;
 
+    obj->rotation.x += this->input_map & INPUT_S ? 5.0f * this->dt : 0; 
+    obj->rotation.x -= this->input_map & INPUT_W ? 5.0f * this->dt : 0; 
+    obj->rotation.y += this->input_map & INPUT_D ? 5.0f * this->dt : 0; 
+    obj->rotation.y -= this->input_map & INPUT_A ? 5.0f * this->dt : 0; 
+
+    obj->position.z += this->input_map & INPUT_ZOOM_OUT ? 30.0f * this->dt : 0; 
+    obj->position.z -= this->input_map & INPUT_ZOOM_IN ? 30.0f * this->dt : 0; 
+
     ImGui::Begin("Curve Configuration"); 
     ImGui::SliderFloat("depth", &(graph->p.terms[0].coefficient), -10.0f, 10.0f);
-    ImGui::SliderFloat("sampling", &graph->p.sampling_rate, 0.001f, 1.0f);
+    ImGui::SliderFloat("sampling", &graph->p.sampling_rate, 0.005f, 1.0f);
     ImGui::SliderFloat("x offset", &graph->p.x_offset, -10.0f, 10.0f);
     ImGui::SliderFloat("y offset", &graph->p.y_offset, -10.0f, 10.0f);
 
-    ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal, 2.0f);
 
     { 
         ImGui::Text("Position:");
@@ -214,18 +231,20 @@ void Engine::UserUpdate(void) {
         ImGui::EndTable();
     }
 
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal, 2.0f);
+
     { 
         ImGui::Text("Rotation:");
 
         ImGui::BeginTable("rotation", 3);
         ImGui::TableNextColumn();
-        ImGui::SliderFloat("x", &obj->rotation.x, 0.0f, 360.0f);
+        ImGui::SliderFloat("x", &obj->rotation.x, -360.0f, 360.0f);
 
         ImGui::TableNextColumn();
-        ImGui::SliderFloat("y", &obj->rotation.y, 0.0f, 360.0f);
+        ImGui::SliderFloat("y", &obj->rotation.y, -360.0f, 360.0f);
 
         ImGui::TableNextColumn();
-        ImGui::SliderFloat("z", &obj->rotation.z, 0.0f, 360.0f);
+        ImGui::SliderFloat("z", &obj->rotation.z, -360.0f, 360.0f);
 
         ImGui::EndTable();
     }
@@ -233,7 +252,9 @@ void Engine::UserUpdate(void) {
     ImGui::End();
 
     for (float x = -graph->space_view.x; x < graph->space_view.x; x += graph->p.sampling_rate) {
-        graph->Calculate(x, vertices);
+        for (float y = -graph->space_view.y; y < graph->space_view.y; y += graph->p.sampling_rate) {
+            graph->Calculate(x, y, vertices);
+        }
     }
 
     bgfx::TransientVertexBuffer tb;

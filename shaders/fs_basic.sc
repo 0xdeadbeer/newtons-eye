@@ -4,5 +4,9 @@ $input f_position
 #include <shaderlib.sh>
 
 void main() {
-  gl_FragColor = vec4(1.0f);
+  float a = sin(f_position.y/10);
+  float red = clamp(-pow((a+1), 2)+1, 0, 1);
+  float green = clamp(-pow(a, 2)+1, 0, 1);
+  float blue = clamp(-pow((a-1), 2)+1, 0, 1);
+  gl_FragColor = vec4(red, green, blue, 1.0f);
 }
