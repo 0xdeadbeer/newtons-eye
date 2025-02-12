@@ -1,7 +1,11 @@
+#include "bgfx/embedded_shader.h"
+#include "glm/ext/scalar_constants.hpp"
 #include "imgui_internal.h"
 #include <bgfx/defines.h>
 #include <bx/file.h>
 #include <bx/math.h>
+#include <cmath>
+#include <exception>
 #include <glm/fwd.hpp>
 #include <cstring>
 #include <engine.hpp>
@@ -31,6 +35,7 @@ Engine::Engine(void) {
     this->dt = 0; 
     this->time = 0; 
     this->input_map = 0; 
+    this->debug_flag = 0; 
 }
 
 void Engine::keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -48,10 +53,19 @@ void Engine::keyboard_callback(GLFWwindow *window, int key, int scancode, int ac
     engine->input_map = new_input_map;
 }
 
+bx::Vec3 at = {0.0f, 0.0f, 0.0f};
+bx::Vec3 eye = {0.0f, 0.0f, -35.0f};
+
+double prev_x = 0.0f; 
 void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
     Engine *engine = (Engine *) glfwGetWindowUserPointer(window);
     engine->cursor_xpos = x;
     engine->cursor_ypos = y;
+
+    float dx = x-prev_x; 
+    prev_x = x;
+    eye.x -= dx / 10;
+
 }
 
 void Engine::cursor_button_callback(GLFWwindow *window, int button, int action, int mods) {
@@ -150,9 +164,6 @@ int Engine::Init(void) {
             0);
 
     {
-        bx::Vec3 at = {0.0f, 0.0f, 0.0f};
-        bx::Vec3 eye = {0.0f, 0.0f, -35.0f};
-
         float view[16];
         bx::mtxLookAt(view, eye, at);
 
@@ -180,96 +191,142 @@ int Engine::Init(void) {
     return 0;
 }
 
+float computation_function(float time, float x, float y) {
+    return sqrt(x*x + y*y) + 
+        (3 * cos(sqrt(x*x + y*y) - (time*15)));
+}
+
 int Engine::UserLoad(void) {
     EngineObject obj; 
-    struct polynomial p;
-    p.add_term(1, 1, 1);
-    p.add_term(1, 2, 0);
-
     obj.graph = new GraphComponent();
-    obj.graph->LoadPolynomial(p, glm::vec3(10.0f));
+    obj.graph->calculate_callback = &computation_function;
+    obj.graph->space_view = glm::vec3(10.0f);
+    obj.graph->sampling_rate = 0.1f;
     this->objs.push_back(obj);
 
     return 0;
 }
 
+void Engine::ImGuiUpdate(EngineObject *obj) {
+    GraphComponent *graph = obj->graph;
+
+    ImGui::Begin("Multi-Dimensional Curve Renderer", NULL, ImGuiWindowFlags_NoResize);
+
+    ImGui::Text("Written with love and passion by @0xdeadbeer");
+    ImGui::Text("Libraries: BGFX, BX, BIMG, IMGUI, GLFW, ASSIMP, GLW");
+    ImGui::Text("Source code publicly available online");
+
+    // general properties
+    ImGui::SeparatorText("General");
+    {
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("sampling rate", &graph->sampling_rate, 0.05f, 10.0f);
+
+        if (ImGui::Button("Toggle Debug Wireframe")) {
+            this->debug_flag = (this->debug_flag+1) % 2;
+        }
+    }
+
+    ImGui::SeparatorText("Space View");
+    { 
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("space view x", &graph->space_view.x, 1.0f, 50.0f);
+
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("space view y", &graph->space_view.y, 1.0f, 50.0f);
+
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("space view z", &graph->space_view.z, 1.0f, 50.0f);
+    }
+
+    // position
+    ImGui::SeparatorText("Positioning");
+    { 
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("position x", &obj->position.x, -30.0f, 30.0f);
+
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("position y", &obj->position.y, -30.0f, 30.0f);
+
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("position z", &obj->position.z, -30.0f, 30.0f);
+    }
+
+    // rotation 
+    ImGui::SeparatorText("Rotationing");
+    { 
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("rotation x", &obj->rotation.x, 0.01f, -2*glm::pi<float>(), 2*glm::pi<float>());
+
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("rotation y", &obj->rotation.y, 0.01f, -2*glm::pi<float>(), 2*glm::pi<float>());
+
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("rotation z", &obj->rotation.z, 0.01f, -2*glm::pi<float>(), 2*glm::pi<float>());
+    }
+
+    ImGui::End();
+}
 void Engine::UserUpdate(void) {
-    std::vector<float> vertices; 
+    bgfx::setDebug(this->debug_flag ? BGFX_DEBUG_WIREFRAME : 0);
 
     EngineObject *obj = &(this->objs.at(0));
     GraphComponent *graph = obj->graph;
 
-    obj->rotation.x += this->input_map & INPUT_S ? 5.0f * this->dt : 0; 
-    obj->rotation.x -= this->input_map & INPUT_W ? 5.0f * this->dt : 0; 
-    obj->rotation.y += this->input_map & INPUT_D ? 5.0f * this->dt : 0; 
-    obj->rotation.y -= this->input_map & INPUT_A ? 5.0f * this->dt : 0; 
+    std::vector<float> vertices; 
+    std::vector<unsigned int> indices;
 
-    obj->position.z += this->input_map & INPUT_ZOOM_OUT ? 30.0f * this->dt : 0; 
-    obj->position.z -= this->input_map & INPUT_ZOOM_IN ? 30.0f * this->dt : 0; 
+    this->ImGuiUpdate(obj);
 
-    ImGui::Begin("Curve Configuration"); 
-    ImGui::SliderFloat("depth", &(graph->p.terms[0].coefficient), -10.0f, 10.0f);
-    ImGui::SliderFloat("sampling", &graph->p.sampling_rate, 0.005f, 1.0f);
-    ImGui::SliderFloat("x offset", &graph->p.x_offset, -10.0f, 10.0f);
-    ImGui::SliderFloat("y offset", &graph->p.y_offset, -10.0f, 10.0f);
-
-    ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal, 2.0f);
-
-    { 
-        ImGui::Text("Position:");
-
-        ImGui::BeginTable("position", 3);
-        ImGui::TableNextColumn();
-        ImGui::SliderFloat("x", &obj->position.x, -30.0f, 30.0f);
-
-        ImGui::TableNextColumn();
-        ImGui::SliderFloat("y", &obj->position.y, -30.0f, 30.0f);
-
-        ImGui::TableNextColumn();
-        ImGui::SliderFloat("z", &obj->position.z, -30.0f, 30.0f);
-
-        ImGui::EndTable();
-    }
-
-    ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal, 2.0f);
-
-    { 
-        ImGui::Text("Rotation:");
-
-        ImGui::BeginTable("rotation", 3);
-        ImGui::TableNextColumn();
-        ImGui::SliderFloat("x", &obj->rotation.x, -360.0f, 360.0f);
-
-        ImGui::TableNextColumn();
-        ImGui::SliderFloat("y", &obj->rotation.y, -360.0f, 360.0f);
-
-        ImGui::TableNextColumn();
-        ImGui::SliderFloat("z", &obj->rotation.z, -360.0f, 360.0f);
-
-        ImGui::EndTable();
-    }
-
-    ImGui::End();
-
-    for (float x = -graph->space_view.x; x < graph->space_view.x; x += graph->p.sampling_rate) {
-        for (float y = -graph->space_view.y; y < graph->space_view.y; y += graph->p.sampling_rate) {
+    int grid_width = 0; 
+    int grid_height = 0; 
+    int grid_verts = 0;
+    for (float y = -graph->space_view.y; y < graph->space_view.y; y += graph->sampling_rate, grid_height++) {
+        for (float x = -graph->space_view.x; x < graph->space_view.x; x += graph->sampling_rate) {
             graph->Calculate(x, y, vertices);
         }
     }
 
-    bgfx::TransientVertexBuffer tb;
-    bgfx::allocTransientVertexBuffer(&tb, vertices.size()/3, graph->graph_layout);
-    
-    uint8_t *data = tb.data;
-    memcpy(data, vertices.data(), vertices.size()*sizeof(float));
+    grid_verts = vertices.size()/3;
+    grid_width = grid_verts/grid_height;
 
+    int grid_idx = 0; 
+    for (int y = 0; y < grid_height-1; y++) {
+        for (int x = 0; x < grid_width-1; x++) {
+            int i = y*(grid_width) + x;
+            indices.push_back(i);
+            indices.push_back(i+1);
+            indices.push_back(i+grid_width);
+
+            indices.push_back(i+grid_width);
+            indices.push_back(i+1+grid_width);
+            indices.push_back(i+1);
+        }
+    }
+
+    grid_idx = indices.size();
+
+    bgfx::TransientVertexBuffer tvb;
+    bgfx::TransientIndexBuffer tvi;
+
+    bgfx::allocTransientVertexBuffer(&tvb, grid_idx, graph->graph_layout);
+    bgfx::allocTransientIndexBuffer(&tvi, grid_idx, true);
+
+    // copy vertices 
+    uint8_t *data = tvb.data;
+    memcpy(data, vertices.data(), grid_verts*3*sizeof(float));
+
+    // copy indices
+    data = tvi.data;
+    memcpy(data, indices.data(), grid_idx*sizeof(unsigned int));
+
+    // render
     bgfx::setState(graph->render_state);
-
-    bgfx::setVertexBuffer(0, &tb);
+    bgfx::setVertexBuffer(0, &tvb);
+    bgfx::setIndexBuffer(&tvi);
     bgfx::setUniform(this->u_position, &obj->position);
     bgfx::setUniform(this->u_rotation, &obj->rotation);
     bgfx::setUniform(this->u_scale, &obj->scale);
-
     bgfx::submit(this->main_view, this->program);
 }
 
@@ -277,6 +334,10 @@ void Engine::Update(void) {
     this->time = glfwGetTime();
     this->dt = this->time - this->last_time;
     this->last_time = this->time;
+
+    this->objs.at(0).graph->last_time = this->last_time;
+    this->objs.at(0).graph->dt = this->dt;
+    this->objs.at(0).graph->time = this->time;
 
     glfwPollEvents();
 
@@ -286,31 +347,9 @@ void Engine::Update(void) {
 
     this->UserUpdate();
 
+    bgfx::frame();
     ImGui::Render();
     imgui_render(ImGui::GetDrawData());
-
-    /* for (int i = 0; i < this->objs.size(); i++) {
-        bgfx::setState(BGFX_STATE_WRITE_R |
-                BGFX_STATE_WRITE_G | 
-                BGFX_STATE_WRITE_B | 
-                BGFX_STATE_WRITE_A | 
-                BGFX_STATE_WRITE_Z |
-                BGFX_STATE_DEPTH_TEST_LESS | 
-                BGFX_STATE_CULL_CCW );
-
-        EngineObject* obj = this->objs[i];
-
-        bgfx::setVertexBuffer(0, obj->vbh);
-        bgfx::setIndexBuffer(obj->ibh);
-
-        bgfx::setUniform(this->u_position, &obj->position);
-        bgfx::setUniform(this->u_rotation, &obj->rotation);
-        bgfx::setUniform(this->u_scale, &obj->scale);
-
-        bgfx::submit(this->main_view, this->program);
-    } */ 
-
-    bgfx::frame();
 }
 
 void Engine::Shutdown(void) { 

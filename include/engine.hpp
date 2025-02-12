@@ -28,6 +28,7 @@ class Engine {
         void Shutdown(void); 
         int UserLoad(void);
         void UserUpdate(void);
+        void ImGuiUpdate(EngineObject *obj);
     
         GLFWwindow* main_window;
         int main_view;
@@ -72,6 +73,8 @@ class Engine {
         float last_time; 
         float dt; 
         float time; 
+
+        int debug_flag;
 };
 
 #endif 
