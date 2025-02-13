@@ -1,6 +1,6 @@
-# Multi-Dimensional Curve Renderer 
+# Multi-Dimensional Function Renderer 
 
-Three dimensional (or even four if you plot color along three dimensions) curve renderer capable of displaying functions like f(x,y) = (x^3 * y - y^3 * x)/360. 
+Three dimensional (or even four if you plot color along three dimensions) function renderer capable of displaying functions like f(x,y) = (x^3 * y - y^3 * x)/360. 
 
 The underlying API renderer is BGFX. Source code is in C++. Intermediate GPU is ran with the help of dear-imgui and a custom port of it to BGFX - which I took from the bigg framework (BGFX + IMGUI + GLFW + GLM). 
 
