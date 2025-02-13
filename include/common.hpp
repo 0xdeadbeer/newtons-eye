@@ -16,6 +16,11 @@
 #define DEFAULT_VERTEX "shaders/vs_basic.bin"
 #define DEFAULT_FRAGMENT "shaders/fs_basic.bin"
 
+#define COMPUTATION_FUNCTION_WAVE       0b00000001
+#define COMPUTATION_FUNCTION_XY         0b00000010
+#define COMPUTATION_FUNCTION_TUBE       0b00000100
+#define COMPUTATION_FUNCTION_BUMPS      0b00001000
+
 bgfx::Memory* load_mem(bx::FileReader* reader, bx::FilePath& filepath); 
 bgfx::ShaderHandle load_shader(bx::FileReader* reader, std::string filename); 
 bgfx::ProgramHandle load_program(std::string vs_name, std::string fs_name);

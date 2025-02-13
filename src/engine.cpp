@@ -65,7 +65,6 @@ void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
     float dx = x-prev_x; 
     prev_x = x;
     eye.x -= dx / 10;
-
 }
 
 void Engine::cursor_button_callback(GLFWwindow *window, int button, int action, int mods) {
@@ -87,8 +86,9 @@ void Engine::window_size_callback(GLFWwindow *window, int width, int height) {
     Engine *engine = (Engine *) glfwGetWindowUserPointer(window);
     engine->width = width; 
     engine->height = height;
-    engine->reset();
+    engine->Reset();
 }
+
 void Engine::scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     ImGuiIO &io = ImGui::GetIO();
     io.MouseWheelH += xoffset;
@@ -100,7 +100,7 @@ void Engine::char_callback(GLFWwindow *window, unsigned int codepoint) {
     io.AddInputCharacter(codepoint);
 }
 
-void Engine::reset(void) {
+void Engine::Reset(void) {
     bgfx::reset(this->width, this->height, 0);
     imgui_reset(this->width, this->height);
     bgfx::setViewRect(this->main_view, 0, 0, width, height);
@@ -181,7 +181,7 @@ int Engine::Init(void) {
     this->program = load_program(DEFAULT_VERTEX, DEFAULT_FRAGMENT);
 
     imgui_init(this->main_window);
-    reset();
+    this->Reset();
 
     ret = this->UserLoad();
     if (ret < 0) {
@@ -191,9 +191,24 @@ int Engine::Init(void) {
     return 0;
 }
 
+int computation_function_id = COMPUTATION_FUNCTION_WAVE; 
+std::vector<std::string> computation_function_names = {"WAVE" ,"LINEAR XY", "TUBE", "BUMPS"};
+float amplitude = 0.36; 
+float time_boost = 1; 
+
 float computation_function(float time, float x, float y) {
-    return sqrt(x*x + y*y) + 
-        (3 * cos(sqrt(x*x + y*y) - (time*15)));
+    switch (computation_function_id) {
+        case COMPUTATION_FUNCTION_WAVE: 
+            return amplitude * sqrt(x*x + y*y) + 
+                (3 * cos(sqrt(x*x + y*y) - (time*time_boost)));
+        case COMPUTATION_FUNCTION_XY:
+            return amplitude*x*y;
+        case COMPUTATION_FUNCTION_TUBE: 
+            return 1/(amplitude * amplitude * (x*x + y*y));
+        case COMPUTATION_FUNCTION_BUMPS: 
+            return (sin(amplitude*x) * cos(amplitude*y))/amplitude;
+    }
+    return 0;
 }
 
 int Engine::UserLoad(void) {
@@ -202,12 +217,16 @@ int Engine::UserLoad(void) {
     obj.graph->calculate_callback = &computation_function;
     obj.graph->space_view = glm::vec3(10.0f);
     obj.graph->sampling_rate = 0.1f;
+
+    obj.rotation.x = glm::pi<float>()/3;
+    obj.position.z = 4.5f;
+
     this->objs.push_back(obj);
 
     return 0;
 }
 
-void Engine::ImGuiUpdate(EngineObject *obj) {
+void Engine::ImguiUpdate(EngineObject *obj) {
     GraphComponent *graph = obj->graph;
 
     ImGui::Begin("Multi-Dimensional Curve Renderer", NULL, ImGuiWindowFlags_NoResize);
@@ -216,11 +235,31 @@ void Engine::ImGuiUpdate(EngineObject *obj) {
     ImGui::Text("Libraries: BGFX, BX, BIMG, IMGUI, GLFW, ASSIMP, GLW");
     ImGui::Text("Source code publicly available online");
 
+    // function select
+    ImGui::SeparatorText("Functions");
+    {
+        int size = computation_function_names.size(); 
+        for (int i = 0; i < size; i++) {
+            ImGui::PushItemWidth(-100);
+            if (ImGui::Selectable(computation_function_names.at(i).c_str(), computation_function_id == (1 << i))) {
+                computation_function_id = 1 << i;
+            }
+        }
+
+        ImGui::PushItemWidth(-100);
+        ImGui::DragFloat("amplitude", &amplitude, 0.01f, 0.0f, 15.0f);
+
+        if (computation_function_id & COMPUTATION_FUNCTION_WAVE) {
+            ImGui::PushItemWidth(-100);
+            ImGui::DragFloat("time boost", &time_boost, 0.01f, 0.0f, 25.0f);
+        }
+    }
+
     // general properties
     ImGui::SeparatorText("General");
     {
         ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("sampling rate", &graph->sampling_rate, 0.05f, 10.0f);
+        ImGui::DragFloat("sampling rate", &graph->sampling_rate, 0.01f, 0.05f, 10.0f);
 
         if (ImGui::Button("Toggle Debug Wireframe")) {
             this->debug_flag = (this->debug_flag+1) % 2;
@@ -230,30 +269,25 @@ void Engine::ImGuiUpdate(EngineObject *obj) {
     ImGui::SeparatorText("Space View");
     { 
         ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("space view x", &graph->space_view.x, 1.0f, 50.0f);
+        ImGui::DragFloat("space view x", &graph->space_view.x, 0.01f, 1.0f, 50.0f);
 
         ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("space view y", &graph->space_view.y, 1.0f, 50.0f);
-
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("space view z", &graph->space_view.z, 1.0f, 50.0f);
+        ImGui::DragFloat("space view y", &graph->space_view.y, 0.01f, 1.0f, 50.0f);
     }
 
-    // position
-    ImGui::SeparatorText("Positioning");
+    ImGui::SeparatorText("Position");
     { 
         ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("position x", &obj->position.x, -30.0f, 30.0f);
+        ImGui::DragFloat("position x", &obj->position.x, 0.01f, -30.0f, 30.0f);
 
         ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("position y", &obj->position.y, -30.0f, 30.0f);
+        ImGui::DragFloat("position y", &obj->position.y, 0.01f, -30.0f, 30.0f);
 
         ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("position z", &obj->position.z, -30.0f, 30.0f);
+        ImGui::DragFloat("position z", &obj->position.z, 0.01f, -30.0f, 30.0f);
     }
 
-    // rotation 
-    ImGui::SeparatorText("Rotationing");
+    ImGui::SeparatorText("Rotation");
     { 
         ImGui::PushItemWidth(-100);
         ImGui::DragFloat("rotation x", &obj->rotation.x, 0.01f, -2*glm::pi<float>(), 2*glm::pi<float>());
@@ -267,6 +301,7 @@ void Engine::ImGuiUpdate(EngineObject *obj) {
 
     ImGui::End();
 }
+
 void Engine::UserUpdate(void) {
     bgfx::setDebug(this->debug_flag ? BGFX_DEBUG_WIREFRAME : 0);
 
@@ -276,7 +311,7 @@ void Engine::UserUpdate(void) {
     std::vector<float> vertices; 
     std::vector<unsigned int> indices;
 
-    this->ImGuiUpdate(obj);
+    this->ImguiUpdate(obj);
 
     int grid_width = 0; 
     int grid_height = 0; 

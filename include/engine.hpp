@@ -28,7 +28,8 @@ class Engine {
         void Shutdown(void); 
         int UserLoad(void);
         void UserUpdate(void);
-        void ImGuiUpdate(EngineObject *obj);
+        void ImguiUpdate(EngineObject *obj);
+        void Reset(void);
     
         GLFWwindow* main_window;
         int main_view;
@@ -53,8 +54,6 @@ class Engine {
         static void window_size_callback(GLFWwindow *window, int width, int height);
         static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
         static void char_callback(GLFWwindow *window, unsigned int codepoint);
-
-        void reset(void);
 
         unsigned char input_map;
 
