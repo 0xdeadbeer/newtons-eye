@@ -193,8 +193,8 @@ int Engine::Init(void) {
 
 int computation_function_id = COMPUTATION_FUNCTION_WAVE; 
 std::vector<std::string> computation_function_names = {"WAVE" ,"LINEAR XY", "TUBE", "BUMPS"};
-float amplitude = 0.36; 
-float time_boost = 1; 
+float amplitude = 0.0f; 
+float time_boost = 1.0f; 
 
 float computation_function(float time, float x, float y) {
     switch (computation_function_id) {
@@ -229,11 +229,14 @@ int Engine::UserLoad(void) {
 void Engine::ImguiUpdate(EngineObject *obj) {
     GraphComponent *graph = obj->graph;
 
+    ImGui::ShowDemoWindow();
+
     ImGui::Begin("Multi-Dimensional Curve Renderer", NULL, ImGuiWindowFlags_NoResize);
 
     ImGui::Text("Written with love and passion by @0xdeadbeer");
     ImGui::Text("Libraries: BGFX, BX, BIMG, IMGUI, GLFW, ASSIMP, GLW");
     ImGui::Text("Source code publicly available online");
+
 
     // function select
     ImGui::SeparatorText("Functions");
@@ -264,6 +267,22 @@ void Engine::ImguiUpdate(EngineObject *obj) {
         if (ImGui::Button("Toggle Debug Wireframe")) {
             this->debug_flag = (this->debug_flag+1) % 2;
         }
+    }
+
+    ImGui::SeparatorText("Miniplots");
+    {
+        std::vector<float> xvalues; 
+        for (float x = -graph->space_view.x; x < graph->space_view.x; x += graph->sampling_rate) {
+           xvalues.push_back(-graph->calculate_callback(this->time, x, 0));
+        }
+
+        std::vector<float> yvalues;
+        for (float y = -graph->space_view.y; y < graph->space_view.y; y += graph->sampling_rate) {
+           yvalues.push_back(-graph->calculate_callback(this->time, 0, y));
+        }
+
+        ImGui::PlotLines("x/z", xvalues.data(), xvalues.size(), 0, NULL, -10.0f, 10.0f, ImVec2(0, 35.0f));
+        ImGui::PlotLines("y/z", yvalues.data(), yvalues.size(), 0, NULL, -10.0f, 10.0f, ImVec2(0, 35.0f));
     }
 
     ImGui::SeparatorText("Space View");
@@ -304,6 +323,7 @@ void Engine::ImguiUpdate(EngineObject *obj) {
 
 void Engine::UserUpdate(void) {
     bgfx::setDebug(this->debug_flag ? BGFX_DEBUG_WIREFRAME : 0);
+
 
     EngineObject *obj = &(this->objs.at(0));
     GraphComponent *graph = obj->graph;

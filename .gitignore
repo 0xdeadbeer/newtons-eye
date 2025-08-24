@@ -1,4 +1,5 @@
 build/
+nbuild/
 .cache/
 compile_commands.json
 tools/

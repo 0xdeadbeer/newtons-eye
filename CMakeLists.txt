@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.25.1)
-project(pgv
+project(function-renderer
         VERSION 0.1
-        DESCRIPTION "polynomial graphical viewer"
-        HOMEPAGE_URL "http://git.0xdeadbeer.xyz/0xdeadbeer/pgv"
+        DESCRIPTION "Function Renderer"
+        HOMEPAGE_URL "http://git.0xdeadbeer.xyz/0xdeadbeer/function-renderer"
         LANGUAGES CXX)
 
 add_subdirectory("thirdparty/bgfx.cmake")
@@ -10,8 +10,8 @@ add_subdirectory("thirdparty/glfw.cmake")
 add_subdirectory("thirdparty/assimp.cmake")
 add_subdirectory("thirdparty/imgui.cmake")
 add_subdirectory("thirdparty/glm.cmake")
-add_executable(pgv
-    src/pgv.cpp
+add_executable(function-renderer
+    src/function-renderer.cpp
     src/common.cpp
     src/engine.cpp
     src/engine/quad.cpp
@@ -20,14 +20,14 @@ add_executable(pgv
     src/engine/graph.cpp
     src/engine/imgui.cpp
 )
-target_link_libraries(pgv bx)
-target_link_libraries(pgv bgfx)
-target_link_libraries(pgv bimg)
-target_link_libraries(pgv imgui)
-target_link_libraries(pgv glfw)
-target_link_libraries(pgv assimp)
-target_link_libraries(pgv glm)
-target_include_directories(pgv PRIVATE "include/")
+target_link_libraries(function-renderer bx)
+target_link_libraries(function-renderer bgfx)
+target_link_libraries(function-renderer bimg)
+target_link_libraries(function-renderer imgui)
+target_link_libraries(function-renderer glfw)
+target_link_libraries(function-renderer assimp)
+target_link_libraries(function-renderer glm)
+target_include_directories(function-renderer PRIVATE "include/")
 
 
 # build shaders into /build/shaders/
