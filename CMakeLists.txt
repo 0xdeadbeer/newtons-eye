@@ -18,6 +18,7 @@ add_executable(function-renderer
     src/engine/object.cpp
     src/engine/model.cpp
     src/engine/graph.cpp
+    src/engine/board.cpp
     src/engine/imgui.cpp
 )
 target_link_libraries(function-renderer bx)

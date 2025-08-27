@@ -63,6 +63,12 @@ class Engine {
         std::string title; 
 
         bgfx::ProgramHandle program;
+        bgfx::UniformHandle u_mass; 
+        bgfx::UniformHandle u_initialSpeed; 
+        bgfx::UniformHandle u_firstBody; 
+        bgfx::UniformHandle u_secondBody; 
+        bgfx::UniformHandle u_thirdBody; 
+        bgfx::UniformHandle u_fourthBody; 
         bgfx::UniformHandle u_position; 
         bgfx::UniformHandle u_rotation; 
         bgfx::UniformHandle u_scale; 

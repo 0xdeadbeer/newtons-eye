@@ -1,25 +1,26 @@
+
+
+# Newton's Eye 
+
 <p align="center" float="left">
-<img src="images/wave-preview.png" width="300">
-	<img src="images/high-sampling-preview.png" width="300" center>
-<img src="images/low-sampling-preview.png" width="300">
+<img src="images/normal-formation.png" width="300"    height="225">
+	<img src="images/onion-formation.png" width="300" height="225">
+<img src="images/pinched-formation.png" width="300"   height="225">
+<img src="images/sided-formation.png" width="300"     height="225">
+<img src="images/wingman-formation.png" width="300"   height="225">
 </p>
 
-# Function Renderer 
+Note: this project is highly inspired by [2swap's video on gravity basins](https://www.youtube.com/watch?v=LavXSS5Xtbg). I wanted to recreate it myself because I thought it was very beautiful and educative. The code is not perfect, because I was in a rush. PRs and suggestions are more than welcome. 
 
-Three dimensional function renderer capable of displaying computational functions. 
+<p align="center" float="left">
+<img src="images/overview.png" width="400">
+</p>
 
-Definition example:
-
-```
-float computational_function(float time, float x, float y) {
-    return (pow(x,3)*y-pow(y,3)*y)/360;
-}
-```
-
+<p align="center"><i>Overview of the project</i></p>
 
 The underlying API renderer is BGFX. Source code is in C++. Intermediate GPU is ran with the help of dear-imgui and a custom port of it to BGFX - which I took from the bigg framework (BGFX + IMGUI + GLFW + GLM). 
 
-For the time being, this remains tested only on a modern linux kernel. Patches and pull requests that highten the project's value or make it more cross-platform are more than welcome. For any technical questions regarding the tool's source code, please contact me via email. 
+For the time being, this remains tested only on a modern linux kernel.
 
 # Build and Run 
 

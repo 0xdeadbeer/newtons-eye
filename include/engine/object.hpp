@@ -7,6 +7,7 @@
 #include <bgfx/bgfx.h>
 #include <assimp/scene.h>
 #include <engine/graph.hpp> 
+#include <engine/board.hpp>
 #include <engine/model.hpp>
 
 class EngineObject {
@@ -19,6 +20,7 @@ class EngineObject {
 
         GraphComponent *graph; 
         ModelComponent *model;
+        BoardComponent *board;
 
 };
 

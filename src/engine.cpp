@@ -21,10 +21,12 @@
 #include <engine/graph.hpp>
 #include <engine/model.hpp>
 
+int board_factor = 20.0f;
+
 Engine::Engine(void) {
     this->width = DEFAULT_WIDTH;
     this->height = DEFAULT_HEIGHT;
-    this->title = "Polynomial Graphical Viewer";
+    this->title = "Newton's Eye";
 
     this->main_view = 0;
 
@@ -53,8 +55,11 @@ void Engine::keyboard_callback(GLFWwindow *window, int key, int scancode, int ac
     engine->input_map = new_input_map;
 }
 
-bx::Vec3 at = {0.0f, 0.0f, 0.0f};
+bx::Vec3 at = {0.0f, 0.0f, -1.0f};
 bx::Vec3 eye = {0.0f, 0.0f, -35.0f};
+bool mouseDown = false;
+
+glm::vec4 *locked = NULL;
 
 double prev_x = 0.0f; 
 void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
@@ -62,9 +67,48 @@ void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
     engine->cursor_xpos = x;
     engine->cursor_ypos = y;
 
+    if (!mouseDown) {
+        locked = NULL; 
+    }
+
     float dx = x-prev_x; 
     prev_x = x;
     eye.x -= dx / 10;
+
+    double pos_x = (x/engine->width); 
+    double pos_y = (engine->height-y)/engine->height;
+
+    pos_x = pos_x * ((float) engine->width/engine->height) * 2 - ((float) engine->width/engine->height);
+    pos_y = pos_y * 2 - 1;
+
+    if (mouseDown && locked == NULL) {
+        BoardComponent *board = engine->objs.at(0).board; 
+        float dist1 = glm::distance(glm::vec2(board->first_body), glm::vec2(pos_x, pos_y));
+        float dist2 = glm::distance(glm::vec2(board->second_body), glm::vec2(pos_x, pos_y));
+        float dist3 = glm::distance(glm::vec2(board->third_body), glm::vec2(pos_x, pos_y));
+        float dist4 = glm::distance(glm::vec2(board->fourth_body), glm::vec2(pos_x, pos_y));
+
+        if (dist1 <= 0.1f)  {
+            locked = &board->first_body; 
+        }
+
+        if (dist2 <= 0.1f)  {
+            locked = &board->second_body; 
+        }
+
+        if (dist3 <= 0.1f)  {
+            locked = &board->third_body; 
+        }
+
+        if (dist4 <= 0.1f)  {
+            locked = &board->fourth_body; 
+        }
+    }
+
+    if (locked != NULL) {
+        locked->x = pos_x; 
+        locked->y = pos_y; 
+    }
 }
 
 void Engine::cursor_button_callback(GLFWwindow *window, int button, int action, int mods) {
@@ -75,9 +119,11 @@ void Engine::cursor_button_callback(GLFWwindow *window, int button, int action, 
     if (button >= 0 && button < IM_ARRAYSIZE(io.MouseDown)) {
         if (action == GLFW_PRESS) {
             io.MouseDown[button] = true;
+            mouseDown = true;
         }
         else {
             io.MouseDown[button] = false;
+            mouseDown = false;
         }
     }
 }
@@ -106,7 +152,7 @@ void Engine::Reset(void) {
     bgfx::setViewRect(this->main_view, 0, 0, width, height);
     bgfx::setViewClear(this->main_view, 
             BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 
-            0x00000000,
+            0x44444400,
             1.0f,
             0);
 }
@@ -168,13 +214,20 @@ int Engine::Init(void) {
         bx::mtxLookAt(view, eye, at);
 
         float proj[16];
-        bx::mtxProj(proj, 60.0f, float(this->width)/float(this->height), 0.1f, 500.0f, bgfx::getCaps()->homogeneousDepth);
+
+        bx::mtxOrtho(proj, -this->width/20, this->width/20, -this->height/20, this->height/20, 0.01f, 100.0f, 0.0f, false);
 
         bgfx::setViewTransform(this->main_view, view, proj);
     }
 
     bgfx::setViewRect(this->main_view, 0, 0, this->width, this->height);
 
+    this->u_mass = bgfx::createUniform("u_mass", bgfx::UniformType::Mat4);
+    this->u_initialSpeed= bgfx::createUniform("u_initialSpeed", bgfx::UniformType::Vec4);
+    this->u_firstBody = bgfx::createUniform("u_firstBody", bgfx::UniformType::Vec4);
+    this->u_secondBody = bgfx::createUniform("u_secondBody", bgfx::UniformType::Vec4);
+    this->u_thirdBody = bgfx::createUniform("u_thirdBody", bgfx::UniformType::Vec4);
+    this->u_fourthBody= bgfx::createUniform("u_fourthBody", bgfx::UniformType::Vec4);
     this->u_position = bgfx::createUniform("u_position", bgfx::UniformType::Vec4);
     this->u_rotation = bgfx::createUniform("u_rotation", bgfx::UniformType::Vec4);
     this->u_scale = bgfx::createUniform("u_scale", bgfx::UniformType::Vec4);
@@ -213,13 +266,15 @@ float computation_function(float time, float x, float y) {
 
 int Engine::UserLoad(void) {
     EngineObject obj; 
-    obj.graph = new GraphComponent();
-    obj.graph->calculate_callback = &computation_function;
-    obj.graph->space_view = glm::vec3(10.0f);
-    obj.graph->sampling_rate = 0.1f;
+    obj.board = new BoardComponent(
+        glm::vec4(-0.5, 0.0f, 0.0f, 0.0f), 
+        glm::vec4(0.5f, 0.0f, 0.0f, 0.0f),
+        glm::vec4(0.0f, 0.5f, 0.0f, 0.0f),
+        glm::vec4(0.0f, -0.5f, 0.0f, 0.0f)
+    );
 
-    obj.rotation.x = glm::pi<float>()/3;
-    obj.position.z = 4.5f;
+    obj.scale.x = board_factor;
+    obj.scale.y = board_factor;
 
     this->objs.push_back(obj);
 
@@ -227,95 +282,45 @@ int Engine::UserLoad(void) {
 }
 
 void Engine::ImguiUpdate(EngineObject *obj) {
-    GraphComponent *graph = obj->graph;
-
-    ImGui::ShowDemoWindow();
-
-    ImGui::Begin("Multi-Dimensional Curve Renderer", NULL, ImGuiWindowFlags_NoResize);
+    ImGui::Begin("Gravity drop-test visualizer", NULL, 0);
 
     ImGui::Text("Written with love and passion by @0xdeadbeer");
     ImGui::Text("Libraries: BGFX, BX, BIMG, IMGUI, GLFW, ASSIMP, GLW");
     ImGui::Text("Source code publicly available online");
 
-
-    // function select
-    ImGui::SeparatorText("Functions");
     {
-        int size = computation_function_names.size(); 
-        for (int i = 0; i < size; i++) {
-            ImGui::PushItemWidth(-100);
-            if (ImGui::Selectable(computation_function_names.at(i).c_str(), computation_function_id == (1 << i))) {
-                computation_function_id = 1 << i;
-            }
-        }
+        ImGui::SliderFloat("initial particle speed x", &(obj->board->initial_speed.x), 0, 1);
+        ImGui::SliderFloat("initial particle speed y", &(obj->board->initial_speed.y), 0, 1);
 
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("amplitude", &amplitude, 0.01f, 0.0f, 15.0f);
+        ImGui::Separator();
 
-        if (computation_function_id & COMPUTATION_FUNCTION_WAVE) {
-            ImGui::PushItemWidth(-100);
-            ImGui::DragFloat("time boost", &time_boost, 0.01f, 0.0f, 25.0f);
-        }
+        ImGui::SliderFloat("first body mass decimal", &(obj->board->masses[0].x), -9, 9);
+        ImGui::SliderFloat("first body mass e", &(obj->board->masses[0].y), 0, 50);
+
+        ImGui::Separator();
+
+        ImGui::SliderFloat("second body mass decimal", &(obj->board->masses[1].x), -9, 9);
+        ImGui::SliderFloat("second body mass e", &(obj->board->masses[1].y), 0, 50);
+
+        ImGui::Separator();
+
+        ImGui::SliderFloat("third body mass decimal", &(obj->board->masses[2].x), -9, 9);
+        ImGui::SliderFloat("third body mass e", &(obj->board->masses[2].y), 0, 50);
+
+        ImGui::Separator();
+
+        ImGui::SliderFloat("fourth body mass decimal", &(obj->board->masses[3].x), -9, 9);
+        ImGui::SliderFloat("fourth body mass e", &(obj->board->masses[3].y), 0, 50);
     }
 
-    // general properties
-    ImGui::SeparatorText("General");
     {
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("sampling rate", &graph->sampling_rate, 0.01f, 0.05f, 10.0f);
+        ImGui::Separator();
 
-        if (ImGui::Button("Toggle Debug Wireframe")) {
-            this->debug_flag = (this->debug_flag+1) % 2;
+        bool changed = ImGui::SliderInt("Scaling factor", &board_factor, 20, 100);
+        if (changed) {
+            this->objs.at(0).scale.x = board_factor;
+            this->objs.at(0).scale.y = board_factor;
         }
-    }
-
-    ImGui::SeparatorText("Miniplots");
-    {
-        std::vector<float> xvalues; 
-        for (float x = -graph->space_view.x; x < graph->space_view.x; x += graph->sampling_rate) {
-           xvalues.push_back(-graph->calculate_callback(this->time, x, 0));
-        }
-
-        std::vector<float> yvalues;
-        for (float y = -graph->space_view.y; y < graph->space_view.y; y += graph->sampling_rate) {
-           yvalues.push_back(-graph->calculate_callback(this->time, 0, y));
-        }
-
-        ImGui::PlotLines("x/z", xvalues.data(), xvalues.size(), 0, NULL, -10.0f, 10.0f, ImVec2(0, 35.0f));
-        ImGui::PlotLines("y/z", yvalues.data(), yvalues.size(), 0, NULL, -10.0f, 10.0f, ImVec2(0, 35.0f));
-    }
-
-    ImGui::SeparatorText("Space View");
-    { 
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("space view x", &graph->space_view.x, 0.01f, 1.0f, 50.0f);
-
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("space view y", &graph->space_view.y, 0.01f, 1.0f, 50.0f);
-    }
-
-    ImGui::SeparatorText("Position");
-    { 
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("position x", &obj->position.x, 0.01f, -30.0f, 30.0f);
-
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("position y", &obj->position.y, 0.01f, -30.0f, 30.0f);
-
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("position z", &obj->position.z, 0.01f, -30.0f, 30.0f);
-    }
-
-    ImGui::SeparatorText("Rotation");
-    { 
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("rotation x", &obj->rotation.x, 0.01f, -2*glm::pi<float>(), 2*glm::pi<float>());
-
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("rotation y", &obj->rotation.y, 0.01f, -2*glm::pi<float>(), 2*glm::pi<float>());
-
-        ImGui::PushItemWidth(-100);
-        ImGui::DragFloat("rotation z", &obj->rotation.z, 0.01f, -2*glm::pi<float>(), 2*glm::pi<float>());
     }
 
     ImGui::End();
@@ -323,48 +328,49 @@ void Engine::ImguiUpdate(EngineObject *obj) {
 
 void Engine::UserUpdate(void) {
     bgfx::setDebug(this->debug_flag ? BGFX_DEBUG_WIREFRAME : 0);
-
+    // bgfx::setDebug(BGFX_DEBUG_STATS);
 
     EngineObject *obj = &(this->objs.at(0));
-    GraphComponent *graph = obj->graph;
+    BoardComponent *board = obj->board;
 
     std::vector<float> vertices; 
     std::vector<unsigned int> indices;
 
     this->ImguiUpdate(obj);
 
-    int grid_width = 0; 
-    int grid_height = 0; 
-    int grid_verts = 0;
-    for (float y = -graph->space_view.y; y < graph->space_view.y; y += graph->sampling_rate, grid_height++) {
-        for (float x = -graph->space_view.x; x < graph->space_view.x; x += graph->sampling_rate) {
-            graph->Calculate(x, y, vertices);
-        }
-    }
+    vertices.push_back((float)-this->width/this->height);
+    vertices.push_back(-1.0f);
+    vertices.push_back(0.0f);
 
-    grid_verts = vertices.size()/3;
-    grid_width = grid_verts/grid_height;
+    vertices.push_back((float)this->width/this->height);
+    vertices.push_back(-1.0f);
+    vertices.push_back(0.0f);
 
+    vertices.push_back((float)this->width/this->height);
+    vertices.push_back(1.0f);
+    vertices.push_back(0.0f);
+
+    vertices.push_back((float)-this->width/this->height);
+    vertices.push_back(1.0f);
+    vertices.push_back(0.0f);
+
+    int grid_verts = vertices.size()/3;
     int grid_idx = 0; 
-    for (int y = 0; y < grid_height-1; y++) {
-        for (int x = 0; x < grid_width-1; x++) {
-            int i = y*(grid_width) + x;
-            indices.push_back(i);
-            indices.push_back(i+1);
-            indices.push_back(i+grid_width);
 
-            indices.push_back(i+grid_width);
-            indices.push_back(i+1+grid_width);
-            indices.push_back(i+1);
-        }
-    }
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(3);
+
+    indices.push_back(3);
+    indices.push_back(2);
+    indices.push_back(1);
 
     grid_idx = indices.size();
 
     bgfx::TransientVertexBuffer tvb;
     bgfx::TransientIndexBuffer tvi;
 
-    bgfx::allocTransientVertexBuffer(&tvb, grid_idx, graph->graph_layout);
+    bgfx::allocTransientVertexBuffer(&tvb, grid_idx, board->layout);
     bgfx::allocTransientIndexBuffer(&tvi, grid_idx, true);
 
     // copy vertices 
@@ -376,9 +382,15 @@ void Engine::UserUpdate(void) {
     memcpy(data, indices.data(), grid_idx*sizeof(unsigned int));
 
     // render
-    bgfx::setState(graph->render_state);
+    bgfx::setState(board->render_state);
     bgfx::setVertexBuffer(0, &tvb);
     bgfx::setIndexBuffer(&tvi);
+    bgfx::setUniform(this->u_mass, &obj->board->masses);
+    bgfx::setUniform(this->u_initialSpeed, &obj->board->initial_speed);
+    bgfx::setUniform(this->u_firstBody, &obj->board->first_body);
+    bgfx::setUniform(this->u_secondBody, &obj->board->second_body);
+    bgfx::setUniform(this->u_thirdBody, &obj->board->third_body);
+    bgfx::setUniform(this->u_fourthBody, &obj->board->fourth_body);
     bgfx::setUniform(this->u_position, &obj->position);
     bgfx::setUniform(this->u_rotation, &obj->rotation);
     bgfx::setUniform(this->u_scale, &obj->scale);
@@ -389,10 +401,6 @@ void Engine::Update(void) {
     this->time = glfwGetTime();
     this->dt = this->time - this->last_time;
     this->last_time = this->time;
-
-    this->objs.at(0).graph->last_time = this->last_time;
-    this->objs.at(0).graph->dt = this->dt;
-    this->objs.at(0).graph->time = this->time;
 
     glfwPollEvents();
 
