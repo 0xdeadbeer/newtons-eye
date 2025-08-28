@@ -18,6 +18,7 @@ class BoardComponent {
         glm::vec4 third_body; 
         glm::vec4 fourth_body; 
         glm::vec4 initial_speed; 
+        glm::vec4 params; 
 
         glm::mat4 masses;
 };

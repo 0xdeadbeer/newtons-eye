@@ -223,6 +223,7 @@ int Engine::Init(void) {
     bgfx::setViewRect(this->main_view, 0, 0, this->width, this->height);
 
     this->u_mass = bgfx::createUniform("u_mass", bgfx::UniformType::Mat4);
+    this->u_params = bgfx::createUniform("u_params", bgfx::UniformType::Vec4);
     this->u_initialSpeed= bgfx::createUniform("u_initialSpeed", bgfx::UniformType::Vec4);
     this->u_firstBody = bgfx::createUniform("u_firstBody", bgfx::UniformType::Vec4);
     this->u_secondBody = bgfx::createUniform("u_secondBody", bgfx::UniformType::Vec4);
@@ -282,15 +283,13 @@ int Engine::UserLoad(void) {
 }
 
 void Engine::ImguiUpdate(EngineObject *obj) {
-    ImGui::Begin("Gravity drop-test visualizer", NULL, 0);
+    ImGui::Begin("Newton's Eye", NULL, 0);
 
     ImGui::Text("Written with love and passion by @0xdeadbeer");
-    ImGui::Text("Libraries: BGFX, BX, BIMG, IMGUI, GLFW, ASSIMP, GLW");
-    ImGui::Text("Source code publicly available online");
 
     {
-        ImGui::SliderFloat("initial particle speed x", &(obj->board->initial_speed.x), 0, 1);
-        ImGui::SliderFloat("initial particle speed y", &(obj->board->initial_speed.y), 0, 1);
+        ImGui::SliderFloat("initial particle speed x", &(obj->board->initial_speed.x), -0.1, 0.1);
+        ImGui::SliderFloat("initial particle speed y", &(obj->board->initial_speed.y), -0.1, 0.1);
 
         ImGui::Separator();
 
@@ -311,6 +310,15 @@ void Engine::ImguiUpdate(EngineObject *obj) {
 
         ImGui::SliderFloat("fourth body mass decimal", &(obj->board->masses[3].x), -9, 9);
         ImGui::SliderFloat("fourth body mass e", &(obj->board->masses[3].y), 0, 50);
+
+        ImGui::Separator();
+
+        ImGui::Text("u_params");
+
+        ImGui::SliderFloat("point mass", &(obj->board->params.x), 0, 1000);
+        ImGui::SliderFloat("speed clamp", &(obj->board->params.y), 0, 1.0f);
+        ImGui::SliderFloat("counter limit", &(obj->board->params.z), 250, 5000);
+        ImGui::SliderFloat("body radius", &(obj->board->params.w), 0.001f, 0.1);
     }
 
     {
@@ -327,8 +335,7 @@ void Engine::ImguiUpdate(EngineObject *obj) {
 }
 
 void Engine::UserUpdate(void) {
-    bgfx::setDebug(this->debug_flag ? BGFX_DEBUG_WIREFRAME : 0);
-    // bgfx::setDebug(BGFX_DEBUG_STATS);
+    bgfx::setDebug(this->debug_flag ? BGFX_DEBUG_WIREFRAME | BGFX_DEBUG_STATS: 0);
 
     EngineObject *obj = &(this->objs.at(0));
     BoardComponent *board = obj->board;
@@ -386,6 +393,7 @@ void Engine::UserUpdate(void) {
     bgfx::setVertexBuffer(0, &tvb);
     bgfx::setIndexBuffer(&tvi);
     bgfx::setUniform(this->u_mass, &obj->board->masses);
+    bgfx::setUniform(this->u_params, &obj->board->params);
     bgfx::setUniform(this->u_initialSpeed, &obj->board->initial_speed);
     bgfx::setUniform(this->u_firstBody, &obj->board->first_body);
     bgfx::setUniform(this->u_secondBody, &obj->board->second_body);

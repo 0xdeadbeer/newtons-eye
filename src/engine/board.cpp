@@ -7,6 +7,7 @@ BoardComponent::BoardComponent(glm::vec4 fb, glm::vec4 sb, glm::vec4 tb, glm::ve
     , third_body(tb)
     , fourth_body(lb)
     , initial_speed(0.0f)
+    , params(1.0f, 1.0f, 250.0f, 0.05f)
     , masses(
             glm::vec4(1.0f, 5.0f, 0.0f, 0.0f),
             glm::vec4(1.0f, 5.0f, 0.0f, 0.0f),

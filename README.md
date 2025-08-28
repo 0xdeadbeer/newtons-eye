@@ -10,7 +10,8 @@
 <img src="images/wingman-formation.png" width="300"   height="225">
 </p>
 
-Note: this project is highly inspired by [2swap's video on gravity basins](https://www.youtube.com/watch?v=LavXSS5Xtbg). I wanted to recreate it myself because I thought it was very beautiful and educative. The code is not perfect, because I was in a rush. PRs and suggestions are more than welcome. 
+**Note**: I uploaded a [full showcase video](https://www.youtube.com/watch?v=zF82NdwvoQ4) on my YouTube channel
+**Note**: this project is highly inspired by [2swap's video on gravity basins](https://www.youtube.com/watch?v=LavXSS5Xtbg). I wanted to recreate it myself because I thought it was very beautiful and educative. The code is not perfect, because I was in a rush. PRs and suggestions are more than welcome. 
 
 <p align="center" float="left">
 <img src="images/overview.png" width="400">

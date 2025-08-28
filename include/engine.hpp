@@ -64,6 +64,7 @@ class Engine {
 
         bgfx::ProgramHandle program;
         bgfx::UniformHandle u_mass; 
+        bgfx::UniformHandle u_params; 
         bgfx::UniformHandle u_initialSpeed; 
         bgfx::UniformHandle u_firstBody; 
         bgfx::UniformHandle u_secondBody; 
