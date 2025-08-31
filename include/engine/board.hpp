@@ -8,19 +8,21 @@
 
 class BoardComponent {
     public:
-        BoardComponent(glm::vec4 fb, glm::vec4 sb, glm::vec4 tb, glm::vec4 lb);
+        BoardComponent();
 
         bgfx::VertexLayout layout;
         uint64_t render_state; 
 
-        glm::vec4 first_body; 
-        glm::vec4 second_body; 
-        glm::vec4 third_body; 
-        glm::vec4 fourth_body; 
         glm::vec4 initial_speed; 
         glm::vec4 params; 
+        glm::vec4 sparams; 
 
+        glm::mat4 positions; 
         glm::mat4 masses;
+
+        glm::mat3 color_strip_1;
+        glm::mat3 color_strip_2;
+        glm::mat3 color_strip_3;
 };
 
 #endif

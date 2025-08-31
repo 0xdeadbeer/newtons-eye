@@ -1,85 +1,87 @@
 $input f_position
 
 uniform vec4 u_params; 
-uniform vec4 u_firstBody;
-uniform vec4 u_secondBody;
-uniform vec4 u_thirdBody;
-uniform vec4 u_fourthBody;
+uniform vec4 u_sparams; 
+uniform mat4 u_positions; 
 uniform vec4 u_initialSpeed;
 uniform mat4 u_mass; 
+
+uniform mat3 u_colors1;
+uniform mat3 u_colors2;
+uniform mat3 u_colors3;
 
 #include <bgfx_shader.sh>
 #include <shaderlib.sh>
 
 float bodyRadius = u_params.w; 
 float pointMass =  u_params.x; 
-float firstBodyMass =  u_mass[0].x * pow(10, u_mass[0].y); 
-float secondBodyMass = u_mass[1].x * pow(10, u_mass[1].y); 
-float thirdBodyMass =  u_mass[2].x * pow(10, u_mass[2].y); 
-float fourthBodyMass = u_mass[3].x * pow(10, u_mass[3].y); 
+int planets = int(u_sparams.x); 
+
+vec3 color_stripe[8] = {
+  u_colors1[0],
+  u_colors1[1],
+  u_colors1[2],
+  u_colors2[0],
+  u_colors2[1],
+  u_colors2[2],
+  u_colors3[0],
+  u_colors3[1]
+};
+
+float masses[8] = {
+  u_mass[0].x * pow(10, u_mass[0].y), 
+  u_mass[1].x * pow(10, u_mass[1].y), 
+  u_mass[2].x * pow(10, u_mass[2].y), 
+  u_mass[3].x * pow(10, u_mass[3].y),
+  u_mass[0].z * pow(10, u_mass[0].w), 
+  u_mass[1].z * pow(10, u_mass[1].w), 
+  u_mass[2].z * pow(10, u_mass[2].w), 
+  u_mass[3].z * pow(10, u_mass[3].w) 
+};
+
+vec4 pos[8] = {
+  vec4(u_positions[0].xy, 0.0f, 0.0f), 
+  vec4(u_positions[1].xy, 0.0f, 0.0f),
+  vec4(u_positions[2].xy, 0.0f, 0.0f),
+  vec4(u_positions[3].xy, 0.0f, 0.0f),
+  vec4(u_positions[0].zw, 0.0f, 0.0f), 
+  vec4(u_positions[1].zw, 0.0f, 0.0f),
+  vec4(u_positions[2].zw, 0.0f, 0.0f),
+  vec4(u_positions[3].zw, 0.0f, 0.0f)
+};
 
 float g = 6.6 * pow(10, -11);
 
 float speedClamp = u_params.y; 
 vec2 pointSpeed = u_initialSpeed.xy;
 vec2 pointPosition = f_position.xy;
-float counter = 0; 
 float counterLimit = u_params.z;
-
-float ndist(float a, float b) {
-  return max(a,b)-min(a,b); 
-}
-vec2 ndist(vec2 a, vec2 b) {
-  return max(a,b)-min(a,b); 
-}
-
-int intersects(vec2 a, vec2 b, vec2 c) {
-  if (min(a.x, b.x) > c.x-bodyRadius) {
-    return 0; 
-  }
-
-  if (max(a.x, b.x) < c.x+bodyRadius) {
-    return 0; 
-  }
-
-  if (min(a.y, b.y) > c.y-bodyRadius) {
-    return 0; 
-  }
-
-  if (max(a.y, b.y) < c.y+bodyRadius) {
-    return 0; 
-  }
-
-  return 1;
-}
+float counter = 0; 
 
 int followPath() {
   do {
-    float distanceToFirst = distance(pointPosition, u_firstBody.xy);
-    float distanceToSecond = distance(pointPosition, u_secondBody.xy);
-    float distanceToThird = distance(pointPosition, u_thirdBody.xy);
-    float distanceToFourth = distance(pointPosition, u_fourthBody.xy);
+    float distances[8] = {
+      distance(pointPosition, pos[0].xy),
+      distance(pointPosition, pos[1].xy),
+      distance(pointPosition, pos[2].xy),
+      distance(pointPosition, pos[3].xy),
+      distance(pointPosition, pos[4].xy),
+      distance(pointPosition, pos[5].xy),
+      distance(pointPosition, pos[6].xy),
+      distance(pointPosition, pos[7].xy)
+    };
 
-    if (distanceToFirst < bodyRadius) {
-      return 1;
+    for (int i = 0; i < planets; i++) {
+      if (distances[i] < bodyRadius) {
+        return i; 
+      }
     }
 
-    if (distanceToSecond < bodyRadius) {
-      return 2; 
-    }
+    vec2 a = vec2(0.0f); 
 
-    if (distanceToThird < bodyRadius) {
-      return 3; 
+    for (int i = 0; i < planets; i++) {
+      a += (g * pointMass * masses[i] * (pos[i].xy - pointPosition)) / pow(distances[i], 3);
     }
-
-    if (distanceToFourth < bodyRadius) {
-      return 4; 
-    }
-
-    vec2 a = (g * pointMass * firstBodyMass * (u_firstBody.xy - pointPosition))/pow(distanceToFirst, 3);
-    a += (g * pointMass * secondBodyMass * (u_secondBody.xy - pointPosition))/pow(distanceToSecond, 3);
-    a += (g * pointMass * thirdBodyMass * (u_thirdBody.xy - pointPosition))/pow(distanceToThird, 3);
-    a += (g * pointMass * fourthBodyMass * (u_fourthBody.xy - pointPosition))/pow(distanceToFourth, 3);
 
     if (length(pointSpeed+a) > speedClamp) {
       pointSpeed += a; 
@@ -93,49 +95,23 @@ int followPath() {
     counter++; 
   } while (counter < counterLimit); 
 
-  return 0; 
+  return -1; 
 }
 
 void main() {
-  if (distance(f_position.xy, u_firstBody.xy) <= bodyRadius) {
-    gl_FragColor = vec4(0.0f);
-    return;
-  }
-  if (distance(f_position.xy, u_secondBody.xy) <= bodyRadius) {
-    gl_FragColor = vec4(0.0f);
-    return;
-  }
-  if (distance(f_position.xy, u_thirdBody.xy) <= bodyRadius) {
-    gl_FragColor = vec4(0.0f); 
-    return; 
-  }
-  if (distance(f_position.xy, u_fourthBody.xy) <= bodyRadius) {
-    gl_FragColor = vec4(0.0f); 
-    return; 
+  for (int i = 0; i < planets; i++) {
+    if (distance(f_position.xy, pos[i].xy) <= bodyRadius) {
+      gl_FragColor = vec4(0.0f);
+      return; 
+    }
   }
 
   int hit = followPath(); 
+  if (hit == -1) {
+    gl_FragColor = vec4(0.0f); 
+    return; 
+  }
   float computationCoefficient = counter/counterLimit; 
 
-  if (hit == 1) {
-    gl_FragColor = vec4(1.0f-computationCoefficient, 0.0f, 1.0f-computationCoefficient, 0.0f);
-    return; 
-  } 
-
-  if (hit == 2) {
-    gl_FragColor = vec4(0.0f, 1.0f-computationCoefficient, 0.0f, 1.0f);
-    return; 
-  }
-
-  if (hit == 3) {
-    gl_FragColor = vec4(1.0f-computationCoefficient, 0.0f, 0.0f, 1.0f);
-    return; 
-  }
-
-  if (hit == 4) {
-    gl_FragColor = vec4(0.0f, 0.7f-computationCoefficient*0.7, 1.0f-computationCoefficient, 1.0f);
-    return; 
-  }
-
-  gl_FragColor = vec4(0.0f);
+  gl_FragColor = vec4(color_stripe[hit].x-computationCoefficient*color_stripe[hit].x, color_stripe[hit].y-computationCoefficient*color_stripe[hit].y, color_stripe[hit].z-computationCoefficient*color_stripe[hit].z, 1.0f);
 }

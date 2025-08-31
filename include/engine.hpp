@@ -65,11 +65,12 @@ class Engine {
         bgfx::ProgramHandle program;
         bgfx::UniformHandle u_mass; 
         bgfx::UniformHandle u_params; 
+        bgfx::UniformHandle u_sparams; 
         bgfx::UniformHandle u_initialSpeed; 
-        bgfx::UniformHandle u_firstBody; 
-        bgfx::UniformHandle u_secondBody; 
-        bgfx::UniformHandle u_thirdBody; 
-        bgfx::UniformHandle u_fourthBody; 
+        bgfx::UniformHandle u_colors1; 
+        bgfx::UniformHandle u_colors2; 
+        bgfx::UniformHandle u_colors3; 
+        bgfx::UniformHandle u_positions; 
         bgfx::UniformHandle u_position; 
         bgfx::UniformHandle u_rotation; 
         bgfx::UniformHandle u_scale; 

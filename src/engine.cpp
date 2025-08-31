@@ -59,7 +59,7 @@ bx::Vec3 at = {0.0f, 0.0f, -1.0f};
 bx::Vec3 eye = {0.0f, 0.0f, -35.0f};
 bool mouseDown = false;
 
-glm::vec4 *locked = NULL;
+int locked = 0;
 
 double prev_x = 0.0f; 
 void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
@@ -68,7 +68,7 @@ void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
     engine->cursor_ypos = y;
 
     if (!mouseDown) {
-        locked = NULL; 
+        locked = -1; 
     }
 
     float dx = x-prev_x; 
@@ -80,34 +80,66 @@ void Engine::cursor_callback(GLFWwindow *window, double x, double y) {
 
     pos_x = pos_x * ((float) engine->width/engine->height) * 2 - ((float) engine->width/engine->height);
     pos_y = pos_y * 2 - 1;
+    BoardComponent *board = engine->objs.at(0).board; 
 
-    if (mouseDown && locked == NULL) {
-        BoardComponent *board = engine->objs.at(0).board; 
-        float dist1 = glm::distance(glm::vec2(board->first_body), glm::vec2(pos_x, pos_y));
-        float dist2 = glm::distance(glm::vec2(board->second_body), glm::vec2(pos_x, pos_y));
-        float dist3 = glm::distance(glm::vec2(board->third_body), glm::vec2(pos_x, pos_y));
-        float dist4 = glm::distance(glm::vec2(board->fourth_body), glm::vec2(pos_x, pos_y));
-
-        if (dist1 <= 0.1f)  {
-            locked = &board->first_body; 
-        }
-
-        if (dist2 <= 0.1f)  {
-            locked = &board->second_body; 
-        }
-
-        if (dist3 <= 0.1f)  {
-            locked = &board->third_body; 
-        }
-
-        if (dist4 <= 0.1f)  {
-            locked = &board->fourth_body; 
+    if (mouseDown && locked == -1) {
+        float distances[8] = {
+            glm::distance(glm::vec2(board->positions[0].x, board->positions[0].y), glm::vec2(pos_x, pos_y)),
+            glm::distance(glm::vec2(board->positions[1].x, board->positions[1].y), glm::vec2(pos_x, pos_y)),
+            glm::distance(glm::vec2(board->positions[2].x, board->positions[2].y), glm::vec2(pos_x, pos_y)),
+            glm::distance(glm::vec2(board->positions[3].x, board->positions[3].y), glm::vec2(pos_x, pos_y)),
+            glm::distance(glm::vec2(board->positions[0].z, board->positions[0].w), glm::vec2(pos_x, pos_y)),
+            glm::distance(glm::vec2(board->positions[1].z, board->positions[1].w), glm::vec2(pos_x, pos_y)),
+            glm::distance(glm::vec2(board->positions[2].z, board->positions[2].w), glm::vec2(pos_x, pos_y)),
+            glm::distance(glm::vec2(board->positions[3].z, board->positions[3].w), glm::vec2(pos_x, pos_y)),
+        };
+        for (int i = 0; i < (int) board->sparams.x; i++) {
+            if (distances[i] <= 0.1f) {
+                locked = i+1; 
+                break; 
+            }
         }
     }
 
-    if (locked != NULL) {
-        locked->x = pos_x; 
-        locked->y = pos_y; 
+    if (locked == -1) {
+        return; 
+    }
+
+    switch (locked) {
+        case 1:
+            board->positions[0].x = pos_x; 
+            board->positions[0].y = pos_y; 
+            break;
+        case 2: 
+            board->positions[1].x = pos_x; 
+            board->positions[1].y = pos_y; 
+            break;
+        case 3: 
+            board->positions[2].x = pos_x; 
+            board->positions[2].y = pos_y; 
+            break;
+        case 4: 
+            board->positions[3].x = pos_x; 
+            board->positions[3].y = pos_y; 
+            break;
+        case 5: 
+            board->positions[0].z = pos_x; 
+            board->positions[0].w = pos_y; 
+            break;
+        case 6:
+            board->positions[1].z = pos_x; 
+            board->positions[1].w = pos_y; 
+            break;
+        case 7:
+            board->positions[2].z = pos_x; 
+            board->positions[2].w = pos_y; 
+            break;
+        case 8: 
+            board->positions[3].z = pos_x; 
+            board->positions[3].w = pos_y; 
+            break;
+        default:
+            break;
     }
 }
 
@@ -222,16 +254,19 @@ int Engine::Init(void) {
 
     bgfx::setViewRect(this->main_view, 0, 0, this->width, this->height);
 
+    this->u_colors1 = bgfx::createUniform("u_colors1", bgfx::UniformType::Mat3);
+    this->u_colors2 = bgfx::createUniform("u_colors2", bgfx::UniformType::Mat3);
+    this->u_colors3 = bgfx::createUniform("u_colors3", bgfx::UniformType::Mat3);
+    this->u_positions = bgfx::createUniform("u_positions", bgfx::UniformType::Mat4);
     this->u_mass = bgfx::createUniform("u_mass", bgfx::UniformType::Mat4);
     this->u_params = bgfx::createUniform("u_params", bgfx::UniformType::Vec4);
+    this->u_sparams= bgfx::createUniform("u_sparams", bgfx::UniformType::Vec4);
     this->u_initialSpeed= bgfx::createUniform("u_initialSpeed", bgfx::UniformType::Vec4);
-    this->u_firstBody = bgfx::createUniform("u_firstBody", bgfx::UniformType::Vec4);
-    this->u_secondBody = bgfx::createUniform("u_secondBody", bgfx::UniformType::Vec4);
-    this->u_thirdBody = bgfx::createUniform("u_thirdBody", bgfx::UniformType::Vec4);
-    this->u_fourthBody= bgfx::createUniform("u_fourthBody", bgfx::UniformType::Vec4);
+
     this->u_position = bgfx::createUniform("u_position", bgfx::UniformType::Vec4);
     this->u_rotation = bgfx::createUniform("u_rotation", bgfx::UniformType::Vec4);
     this->u_scale = bgfx::createUniform("u_scale", bgfx::UniformType::Vec4);
+
     this->program = load_program(DEFAULT_VERTEX, DEFAULT_FRAGMENT);
 
     imgui_init(this->main_window);
@@ -267,12 +302,7 @@ float computation_function(float time, float x, float y) {
 
 int Engine::UserLoad(void) {
     EngineObject obj; 
-    obj.board = new BoardComponent(
-        glm::vec4(-0.5, 0.0f, 0.0f, 0.0f), 
-        glm::vec4(0.5f, 0.0f, 0.0f, 0.0f),
-        glm::vec4(0.0f, 0.5f, 0.0f, 0.0f),
-        glm::vec4(0.0f, -0.5f, 0.0f, 0.0f)
-    );
+    obj.board = new BoardComponent();
 
     obj.scale.x = board_factor;
     obj.scale.y = board_factor;
@@ -283,33 +313,49 @@ int Engine::UserLoad(void) {
 }
 
 void Engine::ImguiUpdate(EngineObject *obj) {
+    ImGui::ShowDemoWindow();
     ImGui::Begin("Newton's Eye", NULL, 0);
 
+    BoardComponent *board = obj->board; 
+
     ImGui::Text("Written with love and passion by @0xdeadbeer");
+
+    {
+        ImGui::Text("coloring scheme");
+        ImGui::ColorEdit3("planet 1 color", (float*) &(board->color_strip_1[0]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("planet 2 color", (float*) &(board->color_strip_1[1]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("planet 3 color", (float*) &(board->color_strip_1[2]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("planet 4 color", (float*) &(board->color_strip_2[0]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("planet 5 color", (float*) &(board->color_strip_2[1]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("planet 6 color", (float*) &(board->color_strip_2[2]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("planet 7 color", (float*) &(board->color_strip_3[0]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+        ImGui::ColorEdit3("planet 8 color", (float*) &(board->color_strip_3[1]), ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float);
+    }
+
+    ImGui::Separator();
 
     {
         ImGui::SliderFloat("initial particle speed x", &(obj->board->initial_speed.x), -0.1, 0.1);
         ImGui::SliderFloat("initial particle speed y", &(obj->board->initial_speed.y), -0.1, 0.1);
 
-        ImGui::Separator();
+        ImGui::Separator(); 
 
         ImGui::SliderFloat("first body mass decimal", &(obj->board->masses[0].x), -9, 9);
-        ImGui::SliderFloat("first body mass e", &(obj->board->masses[0].y), 0, 50);
-
-        ImGui::Separator();
-
+        ImGui::SliderFloat("first body mass e", &(obj->board->masses[0].y), 0, 10);
         ImGui::SliderFloat("second body mass decimal", &(obj->board->masses[1].x), -9, 9);
-        ImGui::SliderFloat("second body mass e", &(obj->board->masses[1].y), 0, 50);
-
-        ImGui::Separator();
-
+        ImGui::SliderFloat("second body mass e", &(obj->board->masses[1].y), 0, 10);
         ImGui::SliderFloat("third body mass decimal", &(obj->board->masses[2].x), -9, 9);
-        ImGui::SliderFloat("third body mass e", &(obj->board->masses[2].y), 0, 50);
-
-        ImGui::Separator();
-
+        ImGui::SliderFloat("third body mass e", &(obj->board->masses[2].y), 0, 10);
         ImGui::SliderFloat("fourth body mass decimal", &(obj->board->masses[3].x), -9, 9);
-        ImGui::SliderFloat("fourth body mass e", &(obj->board->masses[3].y), 0, 50);
+        ImGui::SliderFloat("fourth body mass e", &(obj->board->masses[3].y), 0, 10);
+        ImGui::SliderFloat("fifth body mass decimal", &(obj->board->masses[0].z), -9, 9);
+        ImGui::SliderFloat("fifth body mass e", &(obj->board->masses[0].w), 0, 10);
+        ImGui::SliderFloat("sixth body mass decimal", &(obj->board->masses[1].z), -9, 9);
+        ImGui::SliderFloat("sixth body mass e", &(obj->board->masses[1].w), 0, 10);
+        ImGui::SliderFloat("seventh body mass decimal", &(obj->board->masses[2].z), -9, 9);
+        ImGui::SliderFloat("seventh body mass e", &(obj->board->masses[2].w), 0, 10);
+        ImGui::SliderFloat("eighth body mass decimal", &(obj->board->masses[3].z), -9, 9);
+        ImGui::SliderFloat("eighth body mass e", &(obj->board->masses[3].w), 0, 10);
 
         ImGui::Separator();
 
@@ -319,6 +365,11 @@ void Engine::ImguiUpdate(EngineObject *obj) {
         ImGui::SliderFloat("speed clamp", &(obj->board->params.y), 0, 1.0f);
         ImGui::SliderFloat("counter limit", &(obj->board->params.z), 250, 5000);
         ImGui::SliderFloat("body radius", &(obj->board->params.w), 0.001f, 0.1);
+    }
+
+    {
+        ImGui::Text("planets"); 
+        ImGui::SliderFloat("number of planets", &(obj->board->sparams.x), 0, 8); 
     }
 
     {
@@ -394,11 +445,12 @@ void Engine::UserUpdate(void) {
     bgfx::setIndexBuffer(&tvi);
     bgfx::setUniform(this->u_mass, &obj->board->masses);
     bgfx::setUniform(this->u_params, &obj->board->params);
+    bgfx::setUniform(this->u_sparams, &obj->board->sparams);
     bgfx::setUniform(this->u_initialSpeed, &obj->board->initial_speed);
-    bgfx::setUniform(this->u_firstBody, &obj->board->first_body);
-    bgfx::setUniform(this->u_secondBody, &obj->board->second_body);
-    bgfx::setUniform(this->u_thirdBody, &obj->board->third_body);
-    bgfx::setUniform(this->u_fourthBody, &obj->board->fourth_body);
+    bgfx::setUniform(this->u_colors1, &obj->board->color_strip_1);
+    bgfx::setUniform(this->u_colors2, &obj->board->color_strip_2);
+    bgfx::setUniform(this->u_colors3, &obj->board->color_strip_3);
+    bgfx::setUniform(this->u_positions, &obj->board->positions);
     bgfx::setUniform(this->u_position, &obj->position);
     bgfx::setUniform(this->u_rotation, &obj->rotation);
     bgfx::setUniform(this->u_scale, &obj->scale);

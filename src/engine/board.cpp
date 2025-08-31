@@ -1,19 +1,37 @@
 #include "bgfx/defines.h"
 #include <engine/board.hpp>
 
-BoardComponent::BoardComponent(glm::vec4 fb, glm::vec4 sb, glm::vec4 tb, glm::vec4 lb)
-    : first_body(fb)
-    , second_body(sb)
-    , third_body(tb)
-    , fourth_body(lb)
+BoardComponent::BoardComponent()
+    : positions(
+            glm::vec4(-0.5, 0.0f, -0.5f, -0.5f),
+            glm::vec4(0.5, 0.0f, 0.5f, -0.5f),
+            glm::vec4(0.0, 0.5f, 0.5f, 0.5f),
+            glm::vec4(0.0, -0.5f, -0.5f, 0.5f)
+        )
     , initial_speed(0.0f)
     , params(1.0f, 1.0f, 250.0f, 0.05f)
+    , sparams(0b00000010, 0.0f, 0.0f, 0.0f)
     , masses(
-            glm::vec4(1.0f, 5.0f, 0.0f, 0.0f),
-            glm::vec4(1.0f, 5.0f, 0.0f, 0.0f),
-            glm::vec4(1.0f, 5.0f, 0.0f, 0.0f),
-            glm::vec4(1.0f, 5.0f, 0.0f, 0.0f)
+            glm::vec4(1.0f, 5.0f, 1.0f, 5.0f),
+            glm::vec4(1.0f, 5.0f, 1.0f, 5.0f),
+            glm::vec4(1.0f, 5.0f, 1.0f, 5.0f),
+            glm::vec4(1.0f, 5.0f, 1.0f, 5.0f)
             )
+    , color_strip_1(
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 1.0f)
+        )
+    , color_strip_2(
+            glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(1.0f, 0.0f, 1.0f),
+            glm::vec3(1.0f, 1.0f, 0.0f)
+        )
+    , color_strip_3(
+            glm::vec3(1.0f, 1.0f, 1.0f),
+            glm::vec3(0.3f, 0.8f, 0.5f),
+            glm::vec3(0.0f)
+        )
     , render_state(BGFX_STATE_WRITE_R |
         BGFX_STATE_WRITE_G | 
         BGFX_STATE_WRITE_B | 
